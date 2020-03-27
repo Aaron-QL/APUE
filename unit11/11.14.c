@@ -76,15 +76,18 @@ void job_remove(struct queue *qp, struct job *jp)
 
 struct job *job_find(struct queue *qp, pthread_t id)
 {
-    struct job *jp;
+    struct job *jp = NULL;
 
-    if (pthread_rwlock_rdlock(&qp->q_lock) != 0)
+    if (pthread_rwlock_rdlock(&qp->lock) != 0) {
         return(NULL);
+    }
 
-    for (jp = qp->q_head; jp != NULL; jp = jp->j_next)
-        if (pthread_equal(jp->j_id, id))
+    for (jp = qp->head; jp != NULL; jp = jp->next) {
+        if (pthread_equal(jp->id, id)) {
             break;
+        }
+    }
 
-    pthread_rwlock_unlock(&qp->q_lock);
-    return(jp);
+    pthread_rwlock_unlock(&qp->lock);
+    return jp;
 }
