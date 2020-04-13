@@ -2,45 +2,61 @@
 #include <errno.h>
 #include <fcntl.h>
 
-void set_fl(int fd, int flags) /* flags are file status flags to turn on */
+#define BUFFSIZE 4096
+char buf[BUFFSIZE];
+
+//非阻塞I/O
+void set_flag(int fd, int flags)
 {
-    int		val;
+    int val;
+    if ((val = fcntl(fd, F_GETFL, 0)) < 0) {
+        err_sys("fcntl error");
+    }
 
-    if ((val = fcntl(fd, F_GETFL, 0)) < 0)
-        err_sys("fcntl F_GETFL error");
-
-    val |= flags;		/* turn on flags */
-
-    if (fcntl(fd, F_SETFL, val) < 0)
-        err_sys("fcntl F_SETFL error");
+    //设置位
+    val |= flags;
+    if (fcntl(fd, F_SETFL, val) < 0) {
+        err_sys("fcntl error");
+    }
 }
 
+void clr_flag(int fd, int flags)
+{
+    int val;
+    if ((val = fcntl(fd, F_GETFL, 0)) < 0) {
+        err_sys("fcntl error");
+    }
 
-char buf[500000];
+    //屏蔽位
+    val &= ~flags;
+
+    if (fcntl(fd, F_SETFL, val) < 0) {
+        err_sys("fcntl error");
+    }
+}
 
 int main(void)
 {
-    int		ntowrite, nwrite;
-    char	*ptr;
+    int ntowrite, nwrite;
+    char *ptr;
 
-    ntowrite = read(STDIN_FILENO, buf, sizeof(buf));
-    fprintf(stderr, "read %d bytes\n", ntowrite);
+    if ((ntowrite = read(STDIN_FILENO, buf, BUFFSIZE)) < 0) {
+        err_sys("read error");
+    }
+    printf("read %d bytes\n", ntowrite);
 
-    set_fl(STDOUT_FILENO, O_NONBLOCK);	/* set nonblocking */
+    set_flag(STDOUT_FILENO, O_NONBLOCK);
 
     ptr = buf;
     while (ntowrite > 0) {
-        errno = 0;
         nwrite = write(STDOUT_FILENO, ptr, ntowrite);
         fprintf(stderr, "nwrite = %d, errno = %d\n", nwrite, errno);
-
         if (nwrite > 0) {
-            ptr += nwrite;
             ntowrite -= nwrite;
+            ptr += nwrite;
         }
     }
 
-//    clr_fl(STDOUT_FILENO, O_NONBLOCK);	/* clear nonblocking */
-
+    clr_flag(STDOUT_FILENO, O_NONBLOCK);
     exit(0);
 }
