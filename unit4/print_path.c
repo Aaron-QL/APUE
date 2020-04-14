@@ -71,6 +71,7 @@ static void travel_dir(char *path, int deep)
             printf("--");
         }
 
+        //打印目录项名称
         printf("%s\n", entity->d_name);
 
         if (S_ISDIR(file_status.st_mode)) {
