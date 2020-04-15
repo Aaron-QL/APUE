@@ -10,7 +10,7 @@ main(int argc, char *argv[]) {
     pid_t pid;
     char buf[5];
     struct stat statbuf;
-
+FILE
     if (argc != 2) {
         fprintf(stderr, "usage: %s filename\n", argv[0]);
         exit(1);
