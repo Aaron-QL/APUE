@@ -1,9 +1,18 @@
 #include "../apue.3e/include/apue.h"
 #include <sys/wait.h>
 
-static void charatatime(char *);
+static void print(char *s)
+{
+    char *ptr = s;
+    setbuf(stdout, NULL);
 
-int main(void) {
+    while (*ptr != 0) {
+        putc(*ptr++, stdout);
+    }
+}
+
+int main(void)
+{
     pid_t pid;
 
     TELL_WAIT();
@@ -11,20 +20,12 @@ int main(void) {
     if ((pid = fork()) < 0) {
         err_sys("fork error");
     } else if (pid == 0) {
-        WAIT_PARENT();        /* parent goes first */
-        charatatime("output from child\n");
+        WAIT_PARENT();
+        print("print from child process\n");
     } else {
-        charatatime("output from parent\n");
         TELL_CHILD(pid);
+        print("print from parent process\n");
     }
+
     exit(0);
-}
-
-static void charatatime(char *str) {
-    char *ptr;
-    int c;
-
-    setbuf(stdout, NULL);            /* set unbuffered */
-    for (ptr = str; (c = *ptr++) != 0;)
-        putc(c, stdout);
 }

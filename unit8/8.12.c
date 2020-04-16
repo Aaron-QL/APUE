@@ -1,20 +1,19 @@
 #include "../apue.3e/include/apue.h"
 #include <sys/wait.h>
 
-void print(char *s)
+static void print(char *s)
 {
+    char *ptr = s;
     setbuf(stdout, NULL);
-    char *ptr;
-    int c;
-    for (ptr = s; *ptr != 0; ptr++) {
-        c = *ptr;
-        putc(c, stdout);
+
+    while (*ptr != 0) {
+        putc(*ptr++, stdout);
     }
 }
 
-int main(void) {
-    int pid;
-
+int main(void)
+{
+    pid_t pid;
     if ((pid = fork()) < 0) {
         err_sys("fork error");
     } else if (pid == 0) {

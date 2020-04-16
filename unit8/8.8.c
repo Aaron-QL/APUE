@@ -1,8 +1,9 @@
 #include "../apue.3e/include/apue.h"
 #include <sys/wait.h>
 
-int main(void) {
-    int pid;
+int main(void)
+{
+    pid_t pid;
 
     if ((pid = fork()) < 0) {
         err_sys("fork error");
@@ -14,7 +15,7 @@ int main(void) {
         }
 
         sleep(2);
-        printf("second child, parent pid = %ld\n", (long) getppid());
+        printf("second child process, parent id: %d", (int) getppid());
         exit(0);
     }
 
