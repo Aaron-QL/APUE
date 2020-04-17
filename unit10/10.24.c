@@ -1,52 +1,57 @@
 #include "../apue.3e/include/apue.h"
 
-static volatile sig_atomic_t sigflag; /* set nonzero by sig handler */
-static sigset_t newmask, oldmask, zeromask;
+//使用信号实现父、子进程同步
+static volatile sig_atomic_t sig_flag;
 
-static void sig_usr(int signo)    /* one signal handler for SIGUSR1 and SIGUSR2 */
+static sigset_t new_mask, old_mask, zero_mask;
+
+static void sig_usr(int signo)
 {
-    sigflag = 1;
+    sig_flag = 1;
 }
 
-void TELL_WAIT(void) {
-    if (signal(SIGUSR1, sig_usr) == SIG_ERR)
-        err_sys("signal(SIGUSR1) error");
-    if (signal(SIGUSR2, sig_usr) == SIG_ERR)
-        err_sys("signal(SIGUSR2) error");
-    sigemptyset(&zeromask);
-    sigemptyset(&newmask);
-    sigaddset(&newmask, SIGUSR1);
-    sigaddset(&newmask, SIGUSR2);
+void TELL_WAIT(void)
+{
+    sigemptyset(&new_mask);
+    sigemptyset(&zero_mask);
+    sigaddset(&new_mask, SIGUSR1);
+    sigaddset(&new_mask, SIGUSR2);
 
-    /* Block SIGUSR1 and SIGUSR2, and save current signal mask */
-    if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0)
-        err_sys("SIG_BLOCK error");
+    if (sigprocmask(SIG_BLOCK, &new_mask, &old_mask) < 0) {
+        err_sys("sigprocmask error");
+    }
 }
 
-void TELL_PARENT(pid_t pid) {
-    kill(pid, SIGUSR2);        /* tell parent we're done */
+void TELL_PARENT(pid_t pid)
+{
+    kill(pid, SIGUSR1);
 }
 
-void WAIT_PARENT(void) {
-    while (sigflag == 0)
-        sigsuspend(&zeromask);    /* and wait for parent */
-    sigflag = 0;
-
-    /* Reset signal mask to original value */
-    if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
-        err_sys("SIG_SETMASK error");
+void TELL_CHILD(pid_t pid)
+{
+    kill(pid, SIGUSR2);
 }
 
-void TELL_CHILD(pid_t pid) {
-    kill(pid, SIGUSR1);            /* tell child we're done */
+void WAIT_PARENT(void)
+{
+    while (sig_flag == 0) {
+        sigsuspend(&zero_mask);
+    }
+
+    sig_flag = 0;
+    if (sigprocmask(SIG_SETMASK, &old_mask, NULL) < 0) {
+        err_sys("sigprocmask error");
+    }
 }
 
-void WAIT_CHILD(void) {
-    while (sigflag == 0)
-        sigsuspend(&zeromask);    /* and wait for child */
-    sigflag = 0;
+void WAIT_CHILD(void)
+{
+    while (sig_flag == 0) {
+        sigsuspend(&zero_mask);
+    }
 
-    /* Reset signal mask to original value */
-    if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
-        err_sys("SIG_SETMASK error");
+    sig_flag = 0;
+    if (sigprocmask(SIG_SETMASK, &old_mask, NULL) < 0) {
+        err_sys("sigprocmask error");
+    }
 }
