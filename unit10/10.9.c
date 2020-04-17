@@ -7,8 +7,9 @@ static void sig_int(int);
 int main(void) {
     unsigned int unslept;
 
-    if (signal(SIGINT, sig_int) == SIG_ERR)
+    if (signal(SIGINT, sig_int) == SIG_ERR) {
         err_sys("signal(SIGINT) error");
+    }
     unslept = sleep2(5);
     printf("sleep2 returned: %u\n", unslept);
     exit(0);

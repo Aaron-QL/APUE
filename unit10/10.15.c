@@ -1,41 +1,49 @@
 #include "../apue.3e/include/apue.h"
 
-static void sig_quit(int);
+static void sig_quit(int signo);
 
-int main(void) {
-    sigset_t newmask, oldmask, pendmask;
+int main(void)
+{
+    sigset_t new_mask, old_mask, pend_mask;
 
-    if (signal(SIGQUIT, sig_quit) == SIG_ERR)
-        err_sys("can't catch SIGQUIT");
+    //1. 设置退出信号的处理程序
+    if (signal(SIGQUIT, sig_quit) == SIG_ERR) {
+        err_sys("signal error");
+    }
 
-    /*
-     * Block SIGQUIT and save current signal mask.
-     */
-    sigemptyset(&newmask);
-    sigaddset(&newmask, SIGQUIT);
-    if (sigprocmask(SIG_BLOCK, &newmask, &oldmask) < 0)
-        err_sys("SIG_BLOCK error");
+    //2. 屏蔽退出信号,并保留旧的屏蔽字
+    sigemptyset(&new_mask);
+    sigaddset(&new_mask, SIGQUIT);
+    if (sigprocmask(SIG_BLOCK, &new_mask, &old_mask) < 0) {
+        err_sys("sigprocmask error");
+    }
 
-    sleep(5);    /* SIGQUIT here will remain pending */
+    //3. 睡眠5秒
+    sleep(5);
 
-    if (sigpending(&pendmask) < 0)
+    //4. 检测是否有未决的屏蔽信号
+    if (sigpending(&pend_mask) < 0) {
         err_sys("sigpending error");
-    if (sigismember(&pendmask, SIGQUIT))
+    }
+    if (sigismember(&pend_mask, SIGQUIT)) {
         printf("\nSIGQUIT pending\n");
+    }
 
-    /*
-     * Restore signal mask which unblocks SIGQUIT.
-     */
-    if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
-        err_sys("SIG_SETMASK error");
+    //5. 恢复屏蔽字
+    if (sigprocmask(SIG_SETMASK, &old_mask, NULL) < 0) {
+        err_sys("sigprocmask error");
+    }
     printf("SIGQUIT unblocked\n");
 
-    sleep(5);    /* SIGQUIT here will terminate with core file */
+    //6. 睡眠5秒
+    sleep(5);
     exit(0);
 }
 
-static void sig_quit(int signo) {
+static void sig_quit(int signo)
+{
     printf("caught SIGQUIT\n");
-    if (signal(SIGQUIT, SIG_DFL) == SIG_ERR)
+    if (signal(SIGQUIT, SIG_DFL) == SIG_ERR) {
         err_sys("can't reset SIGQUIT");
+    }
 }

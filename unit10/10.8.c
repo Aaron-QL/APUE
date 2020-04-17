@@ -2,17 +2,20 @@
 #include    <signal.h>
 #include    <unistd.h>
 
-static jmp_buf env_alrm;
+static jmp_buf env_alarm;
 
-static void sig_alrm(int signo) {
-    longjmp(env_alrm, 1);
+void sig_alarm(int signo)
+{
+    longjmp(env_alarm, 1);
 }
 
-unsigned int sleep2(unsigned int seconds) {
-    if (signal(SIGALRM, sig_alrm) == SIG_ERR) {
+int sleep2(int seconds)
+{
+    if (signal(SIGALRM, sig_alarm) == SIG_ERR) {
         return seconds;
     }
-    if (setjmp(env_alrm) == 0) {
+
+    if (setjmp(env_alarm) == 0) {
         alarm(seconds);
         pause();
     }
