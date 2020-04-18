@@ -1,34 +1,44 @@
 #include "../apue.3e/include/apue.h"
 #include <pthread.h>
 
-void *thr_fn1(void *arg) {
-    printf("thread 1 returning\n");
-    return ((void *) 1);
+void *thread_func1(void *arg)
+{
+    printf("thread1 returning\n");
+    return (void *)1;
 }
 
-void *thr_fn2(void *arg) {
-    printf("thread 2 exiting\n");
+void *thread_func2(void *arg)
+{
+    printf("thread2 returning\n");
     pthread_exit((void *) 2);
 }
 
-int main(void) {
-    int err;
+int main(void)
+{
     pthread_t tid1, tid2;
-    void *tret;
+    void *thread_return;
 
-    err = pthread_create(&tid1, NULL, thr_fn1, NULL);
-    if (err != 0)
-        err_exit(err, "can't create thread 1");
-    err = pthread_create(&tid2, NULL, thr_fn2, NULL);
-    if (err != 0)
-        err_exit(err, "can't create thread 2");
-    err = pthread_join(tid1, &tret);
-    if (err != 0)
-        err_exit(err, "can't join with thread 1");
-    printf("thread 1 exit code %ld\n", (long) tret);
-    err = pthread_join(tid2, &tret);
-    if (err != 0)
-        err_exit(err, "can't join with thread 2");
-    printf("thread 2 exit code %ld\n", (long) tret);
+    if (pthread_create(&tid1, NULL, thread_func1, NULL) != 0) {
+        err_sys("pthread_create error");
+    }
+
+
+    if (pthread_create(&tid2, NULL, thread_func2, NULL) != 0) {
+        err_sys("pthread_create error");
+    }
+
+
+    if (pthread_join(tid1, &thread_return) != 0) {
+        err_sys("pthread_join error");
+    }
+
+    printf("thread 1 exit code %ld\n", (long)thread_return);
+
+    if (pthread_join(tid2, &thread_return) != 0) {
+        err_sys("pthread_join error");
+    }
+
+    printf("thread 2 exit code %ld\n", (long)thread_return);
+
     exit(0);
 }
