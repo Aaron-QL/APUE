@@ -3,9 +3,9 @@
 #include <pthread.h>
 
 struct job {
-    struct job *next;
-    struct job *prev;
     pthread_t id;
+    struct job *prevent;
+    struct job *next;
 };
 
 struct queue {
@@ -14,80 +14,72 @@ struct queue {
     pthread_rwlock_t lock;
 };
 
-int queue_init(struct queue *qp)
-{
-    int err;
-    qp->head = NULL;
-    qp->tail = NULL;
-    if ((err = pthread_rwlock_init(&qp->lock, NULL)) != 0) {
-        return err;
-    }
-
-    return 0;
+int queue_init(struct queue *queue_ptr) {
+    queue_ptr->head = NULL;
+    queue_ptr->tail = NULL;
+    return pthread_rwlock_init(&queue_ptr->lock, NULL);
 }
 
-void job_insert(struct queue *qp, struct job *jp)
-{
-    pthread_rwlock_wrlock(&qp->lock);
-    jp->next = qp->head;
-    jp->prev = NULL;
-    if (qp->head == NULL) {
-        qp->tail = jp;
+void job_insert(struct queue *queue_ptr, struct job *job_ptr) {
+    pthread_rwlock_wrlock(&queue_ptr->lock);
+
+    job_ptr->next = queue_ptr->head;
+    job_ptr->prevent = NULL;
+    if (queue_ptr->head == NULL) {
+        queue_ptr->tail = job_ptr;
     } else {
-        qp->head->prev = jp;
+        queue_ptr->head->prevent = job_ptr;
     }
-    qp->head = jp;
-    pthread_rwlock_unlock(&qp->lock);
+    queue_ptr->head = job_ptr;
+
+    pthread_rwlock_unlock(&queue_ptr->lock);
 }
 
-void job_append(struct queue *qp, struct job *jp)
-{
-    pthread_rwlock_wrlock(&qp->lock);
-    jp->next = NULL;
-    jp->prev = qp->tail;
-    if (qp->head == NULL) {
-        qp->head = jp;
+void job_append(struct queue *queue_ptr, struct job * job_ptr) {
+    pthread_rwlock_wrlock(&queue_ptr->lock);
+
+    job_ptr->prevent = queue_ptr->tail;
+    job_ptr->next = NULL;
+    if (queue_ptr->tail == NULL) {
+        queue_ptr->head = job_ptr;
     } else {
-        qp->tail->next = jp;
+        queue_ptr->tail->next = job_ptr;
     }
-    qp->tail = jp;
-    pthread_rwlock_unlock(&qp->lock);
+    queue_ptr->tail = job_ptr;
+
+    pthread_rwlock_unlock(&queue_ptr->lock);
 }
 
-void job_remove(struct queue *qp, struct job *jp)
-{
-    pthread_rwlock_wrlock(&qp->lock);
-    if (jp == qp->head) {
-        qp->head = jp->next;
-        if (qp->tail == jp) {
-            qp->tail = NULL;
+void job_remove(struct queue *queue_ptr, struct job *job_ptr) {
+    pthread_rwlock_wrlock(&queue_ptr->lock);
+
+    if (job_ptr == queue_ptr->head) {
+        queue_ptr->head = job_ptr->next;
+        if (queue_ptr->tail == job_ptr) {
+            queue_ptr->tail = NULL;
         } else {
-            jp->next->prev = jp->prev;
+            queue_ptr->head->prevent = job_ptr->prevent;
         }
-    } else if (jp == qp->tail) {
-        qp->tail = jp->prev;
-        jp->prev->next = jp->next;
+    } else if (job_ptr == queue_ptr->tail) {
+        queue_ptr->tail = job_ptr->prevent;
+        job_ptr->prevent->next = job_ptr->next;
     } else {
-        jp->prev->next = jp->next;
-        jp->next->prev = jp->prev;
+        job_ptr->prevent->next = job_ptr->next;
+        job_ptr->next->prevent = job_ptr->prevent;
     }
-    pthread_rwlock_unlock(&qp->lock);
+
+    pthread_rwlock_unlock(&queue_ptr->lock);
 }
 
-struct job *job_find(struct queue *qp, pthread_t id)
-{
-    struct job *jp = NULL;
-
-    if (pthread_rwlock_rdlock(&qp->lock) != 0) {
-        return(NULL);
-    }
-
-    for (jp = qp->head; jp != NULL; jp = jp->next) {
-        if (pthread_equal(jp->id, id)) {
+struct job *job_find(struct queue *queue_ptr, pthread_t tid) {
+    pthread_rwlock_rdlock(&queue_ptr->lock);
+    struct job *job_ptr;
+    for (job_ptr = queue_ptr->head; job_ptr != NULL; job_ptr = job_ptr->next) {
+        //比较线程ID时使用pthread_equal函数
+        if (pthread_equal(job_ptr->id, tid)) {
             break;
         }
     }
-
-    pthread_rwlock_unlock(&qp->lock);
-    return jp;
+    pthread_rwlock_unlock(&queue_ptr->lock);
+    return job_ptr;
 }
