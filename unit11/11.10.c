@@ -4,56 +4,43 @@
 #include <pthread.h>
 
 struct foo {
-    int f_count;
-    pthread_mutex_t f_lock;
-    int f_id;
+    int id;
+    int count;
+    pthread_mutex_t lock;
 };
 
-struct foo* foo_alloc(int id)
+struct foo *foo_alloc(int id)
 {
-    struct foo *fp;
-    if ((fp = malloc(sizeof(struct foo))) == NULL) {
-        exit(1);
+    struct foo *foo_ptr = malloc(sizeof(struct foo));
+    if (foo_ptr == NULL) {
+        return foo_ptr;
     }
-    fp->f_count = 1;
-    fp->f_id = id;
-    if (pthread_mutex_init(&fp->f_lock, NULL) != 0) {
-        free(fp);
-        exit(2);
+
+    foo_ptr->id = id;
+    foo_ptr->count = 0;
+    if (pthread_mutex_init(&foo_ptr->lock, NULL) != 0) {
+        free(foo_ptr);
+        return NULL;
     }
-    return fp;
+
+    return foo_ptr;
 }
 
-void foo_hold(struct foo *fp)
+void foo_hold(struct foo foo_ptr)
 {
-    pthread_mutex_lock(&fp->f_lock);
-    fp->f_count++;
-    pthread_mutex_unlock(&fp->f_lock);
+    pthread_mutex_lock(&foo_ptr.lock);
+    foo_ptr.count++;
+    pthread_mutex_unlock(&foo_ptr.lock);
 }
 
-void foo_rele(struct foo *fp)
+void foo_release(struct foo foo_ptr)
 {
-    pthread_mutex_lock(&fp->f_lock);
-    if (--fp->f_count == 0) {
-        pthread_mutex_unlock(&fp->f_lock);
-        pthread_mutex_destroy(&fp->f_lock);
-        free(fp);
+    pthread_mutex_lock(&foo_ptr.lock);
+    if (--foo_ptr.count == 0) {
+        pthread_mutex_unlock(&foo_ptr.lock);
+        pthread_mutex_destroy(&foo_ptr.lock);
+        free(foo_ptr);
     } else {
-        pthread_mutex_unlock(&fp->f_lock);
+        pthread_mutex_unlock(&foo_ptr.lock);
     }
-}
-
-void *thr_fn(void *arg) {
-    foo_hold(arg);
-    return ((void *) 0);
-}
-
-int main()
-{
-    pthread_t tid;
-    struct foo *fp = foo_alloc(1);
-    if (pthread_create(&tid, NULL, thr_fn, fp) != 0) {
-        exit(3);
-    }
-    printf("%d: %d\n", fp->f_id, fp->f_count);
 }
