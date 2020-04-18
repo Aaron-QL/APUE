@@ -4,116 +4,96 @@
 #include <pthread.h>
 
 #define NHASH 29
-#define HASH(id) (((unsigned long) id) % NHASH)
+#define HASH(id) (((unsigned long) id) % NNHASH)
 
 struct foo {
-    int f_count;
-    pthread_mutex_t f_lock;
-    int f_id;
-    struct foo *f_next;
+    int id;
+    int count;
+    pthread_mutex_t lock;
+    struct foo *next;
 };
 
-struct foo *fh[NHASH];
+struct foo *foo_buffer[NHASH];
 
-pthread_mutex_t hashlock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t hash_lock = PTHREAD_MUTEX_INITIALIZER;
 
-struct foo* foo_alloc(int id)
-{
-    struct foo *fp;
-    int hashid;
-    if ((fp = malloc(sizeof(struct foo))) == NULL) {
-        err_sys("malloc failed");
+struct foo *foo_alloc(int id) {
+    int hash_id = HASH(id);
+
+    struct foo *foo_ptr = malloc(sizeof(struct foo));
+    if (foo_ptr == NULL) {
+        return NULL;
     }
-    fp->f_id = id;
-    fp->f_count = 1;
-    if (pthread_mutex_init(&fp->f_lock, NULL) != 0) {
-        free(fp);
-        err_sys("pthread_mutex_init failed");
-    }
-    hashid = HASH(id);
-    //先锁住哈希表
-    pthread_mutex_lock(&hashlock);
-    //插入哈希表：
-    fp->f_next = fh[hashid];
-    fh[hashid] = fp;
-    pthread_mutex_lock(&fp->f_lock);
-    //解锁哈希表
-    pthread_mutex_unlock(&hashlock);
-    /* ... 其他初始化工作 ... */
-    pthread_mutex_unlock(&fp->f_lock);
 
-    return fp;
+    foo_ptr->id = id;
+    foo_ptr->count = 0;
+    pthread_mutex_init(&foo_ptr->lock);
+
+    pthread_mutex_lock(&ash_lock);
+    foo_ptr->next = foo_buffer[hash_id];
+    foo_buffer[hash_id] = foo_ptr;
+    pthread_mutex_unlock(&hash_lock);
+
+    return foo_ptr;
 }
 
-void foo_hold(struct foo *fp) /* add a reference to the object */
+void foo_hold(struct foo *foo_ptr)
 {
-    pthread_mutex_lock(&fp->f_lock);
-    fp->f_count++;
-    pthread_mutex_unlock(&fp->f_lock);
+    pthread_mutex_lock(&foo_ptr->lock);
+    foo_ptr->count++;
+    pthread_mutex_unlock(&foo_ptr->lock);
 }
 
-struct foo* foo_find(int id)
+struct foo *foo_find(int id)
 {
-    struct foo* fp;
-    pthread_mutex_lock(&hashlock);
-    for (fp = fh[HASH(id)]; fp != NULL; fp = fp->f_next) {
-        if (fp->f_id == id) {
-            foo_hold(fp);
+    struct foo *foo_ptr;
+    int hash_id = HASH(id);
+    pthread_mutex_lock(&hash_lock);
+    for (foo_ptr = foo_buffer[hash_id]; foo_ptr != NULL; foo_ptr = foo_ptr->next) {
+        if (foo_ptr->id == id) {
+            foo_hold(foo_ptr);
             break;
         }
     }
-    pthread_mutex_unlock(&hashlock);
-    return fp;
+    pthread_mutex_unlock(&hash_lock);
+
+    return foo_ptr;
 }
 
-void foo_rele(struct foo *fp)
+void foo_release(struct foo *foo_ptr)
 {
-    pthread_mutex_lock(&fp->f_lock);
-    if (fp->f_count == 1) {
-        pthread_mutex_unlock(&fp->f_lock);
-        pthread_mutex_lock(&hashlock);
-        pthread_mutex_lock(&fp->f_lock);
-        if (fp->f_count != 1) {
-            fp->f_count--;
-            pthread_mutex_unlock(&fp->f_lock);
-            pthread_mutex_unlock(&hashlock);
-            return;
-        }
-        int hashid = HASH(fp->f_id);
-        struct foo* tfp;
-        tfp = fh[hashid];
-        if (tfp == fp) {
-            fh[hashid] = fp->f_next;
-        } else {
-            while (tfp->f_next != fp) {
-                tfp = tfp->f_next;
+    pthread_mutex_lock(&foo_ptr->lock);
+
+    if (foo_ptr->count == 1) {
+        pthread_mutex_unlock(&foo_ptr->lock);
+        pthread_mutex_lock(&hash_lock);
+        pthread_mutex_lock(&foo_ptr->lock);
+        if (foo_ptr->count == 1) {
+            int hash_id = HASH(foo_ptr->id);
+            struct foo *foo_temp = foo_buffer[hash_id];
+            if (foo_temp == foo_ptr) {
+                foo_buffer[hash_id] = foo_ptr->next;
+            } else {
+                while (foo_temp->next != NULL) {
+                    if (foo_temp->next == foo_ptr) {
+                        foo_temp->next = foo_ptr->next;
+                        break;
+                    }
+                    foo_temp = foo_temp->next;
+                }
             }
-            tfp->f_next = fp->f_next;
+            pthread_mutex_unlock(&hash_lock);
+            pthread_mutex_unlock(&foo_ptr->lock);
+            pthread_mutex_destroy(&foo_ptr->lock);
+            free(foo_ptr);
+        } else {
+            foo_ptr->count--;
+            pthread_mutex_unlock(&foo_ptr->lock);
+            pthread_mutex_unlock(&hash_lock);
         }
-        pthread_mutex_unlock(&hashlock);
-        pthread_mutex_unlock(&fp->f_lock);
-        pthread_mutex_destroy(&fp->f_lock);
-        free(fp);
     } else {
-        fp->f_count--;
-        pthread_mutex_unlock(&fp->f_lock);
+        foo_ptr->count--;
+        pthread_mutex_unlock(&foo_ptr->lock);
     }
-}
 
-void *thr_fn(void *arg) {
-    foo_hold(arg);
-    foo_rele(arg);
-    return ((void *) 0);
-}
-
-int main()
-{
-    pthread_t tid;
-    struct foo *fp = foo_alloc(1);
-
-    if (pthread_create(&tid, NULL, thr_fn, fp) != 0) {
-        exit(3);
-    }
-    sleep(1);
-    printf("%d: %d\n", fp->f_id, fp->f_count);
 }
