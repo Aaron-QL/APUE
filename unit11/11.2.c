@@ -1,30 +1,32 @@
 #include "../apue.3e/include/apue.h"
 #include <pthread.h>
 
-pthread_t ntid;
+pthread_t new_tid;
 
-void printids(const char *s) {
-    pid_t pid;
-    pthread_t tid;
+void print_ids(const char *s)
+{
+    pid_t pid = getppid();
+    pthread_t tid = pthread_self();
 
-    pid = getpid();
-    tid = pthread_self();
     printf("%s pid %lu tid %lu (0x%lx)\n", s, (unsigned long) pid, (unsigned long) tid, (unsigned long) tid);
 }
 
-void *thr_fn(void *arg) {
-    printids("new thread: ");
-    return ((void *) 0);
+void *thread_function(void *arg)
+{
+    print_ids("new thread : ");
+    return (void *) 0;
 }
 
-int main(void) {
+int main(void)
+{
     int err;
+    err = pthread_create(&new_tid, NULL, thread_function, NULL);
 
-    err = pthread_create(&ntid, NULL, thr_fn, NULL);
     if (err != 0) {
         err_exit(err, "can't create thread");
     }
-    printids("main thread:");
+
+    print_ids("main thread: ");
     sleep(1);
     exit(0);
 }
