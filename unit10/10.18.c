@@ -1,14 +1,15 @@
 #include "../apue.3e/include/apue.h"
 
+typedef void Sigfunc(int);
 
 //使用sigaction实现signal
-union __sigaction_u *my_signal(int signo, union __sigaction_u *func)
+Sigfunc *my_signal(int signo, Sigfunc *func)
 {
     //声明sigaction结构
     struct sigaction new_act, old_act;
 
     //设置捕捉函数
-    new_act.__sigaction_u = func;
+    new_act.__sigaction_u = (union __sigaction_u) func;
 
     //设置屏蔽字
     sigemptyset(&new_act.sa_mask);
@@ -25,5 +26,5 @@ union __sigaction_u *my_signal(int signo, union __sigaction_u *func)
         err_sys("sigaction error");
     }
 
-    return old_act.__sigaction_u;
+    return (* Sigfunc) old_act.__sigaction_u;
 }
