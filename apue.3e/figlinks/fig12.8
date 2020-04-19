@@ -44,8 +44,7 @@ timeout_helper(void *arg)
 	return(0);
 }
 
-void
-timeout(const struct timespec *when, void (*func)(void *), void *arg)
+void timeout(const struct timespec *when, void (*func)(void *), void *arg)
 {
 	struct timespec	now;
 	struct to_info	*tip;
