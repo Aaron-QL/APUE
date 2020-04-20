@@ -19,5 +19,5 @@ pid_t lock_test(int fd, int type, off_t offset, int whence, off_t len)
 
 int main(void)
 {
-    printf("pid : %d\n", lock_test(STDIN_FILENO, F_WRLCK, 0, SEEK_SET, 1));
+    printf("pid : %u\n", lock_test(STDIN_FILENO, F_WRLCK, 0, SEEK_SET, 1));
 }
