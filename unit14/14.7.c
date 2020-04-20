@@ -5,12 +5,13 @@
 
 //父子进程都加记录锁，造成死锁
 
-static void lockabyte(char *name, int fd, off_t offset)
+static void lock_a_byte(char *name, int fd, off_t offset)
 {
     if (lock_reg(fd, F_SETLK, F_WRLCK, offset, SEEK_SET, 1) < 0) {
-        err_sys("write_lock error");
+        err_sys("lock_reg error");
     }
-    printf("%s: got the lock, byte %lld\n", name, (long long) offset);
+
+    printf("%s: got the lock, byte %lld\n", name, offset);
 }
 
 int main(void)
@@ -18,9 +19,10 @@ int main(void)
     int fd;
     pid_t pid;
 
-    if ((fd = creat("tempfile", FILE_MODE)) < 0) {
-        err_sys("creat error");
+    if ((fd = creat("temp.file", FILE_MODE)) < 0) {
+        err_sys("open error");
     }
+
     if (write(fd, "ab", 2) != 2) {
         err_sys("write error");
     }
@@ -28,17 +30,19 @@ int main(void)
     TELL_WAIT();
     if ((pid = fork()) < 0) {
         err_sys("fork error");
-    } else if (pid == 0) {
-        lockabyte("child", fd, 1);
+    } else if ( pid == 0) {
+        lock_a_byte("child", fd, 0);
         TELL_PARENT(getppid());
         WAIT_PARENT();
-        lockabyte("child", fd, 0);
+        lock_a_byte("child", fd, 1);
     } else {
-        lockabyte("parent", fd, 0);
+        lock_a_byte("parent", fd, 1);
         TELL_CHILD(pid);
         WAIT_CHILD();
-        lockabyte("parent", fd, 1);
+        lock_a_byte("parent", fd, 0);
     }
+
+    close(fd);
 
     exit(0);
 }
