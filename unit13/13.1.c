@@ -5,61 +5,37 @@
 
 void dameonize(const char *cmd)
 {
-    int i, pid, fd0, fd1, fd2;
+    pid_t pid;
     struct rlimit rl;
-    struct sigaction sa;
+    int fd0, fd1, fd2;
 
     //1 关闭屏蔽字
     umask(0);
 
-    //2 获取最大描述符限制
-    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-        err_quit("%s: can't get file limit", cmd);
-    }
-
-    //3 fork，父进程退出
+    //2 fork，父进程退出
     if ((pid = fork()) < 0) {
-        err_quit("%s: can't fork", cmd);
+        err_sys("error");
     } else if (pid > 0) {
         exit(0);
     }
 
-    //4 建立新会话
+    //3 建立新会话，使调用进程成为会话首进程和组长进程，且没有控制终端
     setsid();
 
-    //5 Ensure future opens won't allocate controlling TTYs.
-    sa.sa_handler = SIG_IGN;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGHUP, &sa, NULL) < 0) {
-        err_quit("%s: can't ignore SIGHUP", cmd);
-    }
-
-    if ((pid = fork()) < 0) {
-        err_quit("%s: can't fork", cmd);
-    } else if (pid > 0) {
-        exit(0);
-    }
-
-
-    /*
-     * 6 Change the current working directory to the root so
-     * we won't prevent file systems from being unmounted.
-     */
+    //4 改变当前工作目录为根目录
     if (chdir("/") < 0) {
-        err_quit("%s: can't change directory to /", cmd);
+        err_sys("error");
     }
 
 
-
-
-    /*
-     * Close all open file descriptors.
-     */
+    // 关闭所有描述符
+    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
+        err_sys("error");
+    }
     if (rl.rlim_max == RLIM_INFINITY) {
         rl.rlim_max = 1024;
     }
-    for (i = 0; i < rl.rlim_max; i++) {
+    for (int i = 0; i < rl.rlim_max; ++i) {
         close(i);
     }
 
@@ -67,12 +43,10 @@ void dameonize(const char *cmd)
      * Attach file descriptors 0, 1, and 2 to /dev/null.
      */
     fd0 = open("/dev/null", O_RDWR);
-    fd1 = dup(0);
-    fd2 = dup(0);
+    fd1 = dup(fd0);
+    fd2 = dup(fd0);
 
-    /*
-     * Initialize the log file.
-     */
+    // optional: Initialize the log file.
     openlog(cmd, LOG_CONS, LOG_DAEMON);
     if (fd0 != 0 || fd1 != 1 || fd2 != 2) {
         syslog(LOG_ERR, "unexpected file descriptors %d %d %d", fd0, fd1, fd2);
