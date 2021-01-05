@@ -9,7 +9,7 @@ int main(void)
 {
     int fd;
     // 创建文件
-    if ((fd = creat("file.nohole", FILE_MODE)) < 0) {
+    if ((fd = creat("file.hole", FILE_MODE)) < 0) {
         err_sys("create error");
     }
 
@@ -18,10 +18,10 @@ int main(void)
         err_sys("buf1 write error");
     }
 
-// lseek
-//    if (lseek(fd, 16384, SEEK_SET) == -1) {
-//        err_sys("lseek error");
-//    }
+ // lseek
+    if (lseek(fd, 16384, SEEK_SET) == -1) {
+        err_sys("lseek error");
+    }
 
 
 // 写入第二个字符串
