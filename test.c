@@ -2,6 +2,8 @@
 
 int main(void)
 {
-    int a = 1;
-    free(&a);
+    clock_t t0 = clock();
+
+    clock_t t1 = clock();
+    printf("%Lf", (long double)(t1 - t0));
 }

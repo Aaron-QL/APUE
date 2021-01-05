@@ -2,5 +2,5 @@ From centos:7
 
 RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && yum update -y \
-    && yum install -y gcc vim ntp sudo
+    && yum install -y gcc vim ntp sudo \
     && ntpdate pool.ntp.org
