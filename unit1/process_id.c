@@ -1,7 +1,0 @@
-#include "../apue.3e/include/apue.h"
-
-int main(void)
-{
-    printf("hello world from process id %ld\n", (long)getpid());
-    exit(0);
-}
